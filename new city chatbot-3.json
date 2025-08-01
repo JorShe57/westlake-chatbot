@@ -1,0 +1,472 @@
+{
+  "name": "new city chatbot",
+  "nodes": [
+    {
+      "parameters": {
+        "public": true,
+        "mode": "webhook",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        80,
+        -224
+      ],
+      "id": "58bbbe0a-841e-42f0-99c7-7aecc808edc8",
+      "name": "When chat message received",
+      "webhookId": "4cb4880c-4d16-443b-b562-c680729b5d1d"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        368,
+        224
+      ],
+      "id": "23303324-6964-4499-a330-f0ba5d28c8cc",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "tnj7vbfyDt5xevcY",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Retrieve precise, department-specific information about Westlake city services, events, and policies. When searching, use exact department names (Recreation Department, Community Services, etc.) and specific keywords to ensure accurate results. This tool automatically includes source URLs for all information retrieved from the city website.",
+        "pineconeIndex": {
+          "__rl": true,
+          "value": "n8n",
+          "mode": "list",
+          "cachedResultName": "n8n"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePinecone",
+      "typeVersion": 1.3,
+      "position": [
+        1552,
+        64
+      ],
+      "id": "5b6d9bd4-bdda-491b-afd9-e2a235adf012",
+      "name": "Pinecone Vector Store",
+      "credentials": {
+        "pineconeApi": {
+          "id": "1OyPhdWrJNAM5osd",
+          "name": "PineconeApi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1648,
+        384
+      ],
+      "id": "9e2a319f-af01-4477-a295-05c05148573b",
+      "name": "Embeddings OpenAI",
+      "credentials": {
+        "openAiApi": {
+          "id": "tnj7vbfyDt5xevcY",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message }}",
+        "options": {
+          "systemMessage": "# Westlake AI Document Assistant\n\nYou are the official AI assistant for the City of Westlake, Ohio. You have access to comprehensive city information and document systems to help residents efficiently.\n\n## CORE CAPABILITIES:\n1. **Answer city service questions** using your knowledge base\n2. **Locate and provide city documents** from Google Drive and Airtable\n3. **Report resident concerns** with case tracking\n4. **Provide department contacts** and detailed guidance\n\n## DOCUMENT SEARCH STRATEGY:\n\n**Google Drive Integration:**\nYour Google Drive contains these main document folders:\n- **Building Permits** (ID: 1NN9EZN6R7Feufd0UUSJUtasnuHJSp4Q7) - Applications, forms, permits\n- **Planning Applications** (ID: 1V_IcZ1Zm0iJ2njaqCTtfpqm3fuAgZ9GL) - Zoning, development docs\n- **Board of Building and Zoning Appeals** (ID: 1lE2kA_oxlXxEpYT1ve4UTVhSHQUST_Kl) - Appeals, variances\n- **Annual Budgets** (ID: 1PMMPjJuNv4ihZlc7L_aUMnzKJAibAYJN) - City budgets, financial plans\n- **Annual Financial Reports** (ID: 17DrzsdsFHmTOuCawclXT92Wc25sceNcJ) - Comprehensive financial reports  \n- **Fee Schedule** (ID: 1bpzvO5Bkpe6LDE3Rh8L1sjuBuTOYV-QT) - All city fees and costs\n\n**Document Request Process:**\n1. **First search Airtable** for document metadata and quick access\n2. **Then search Google Drive** for actual document files if needed\n3. **Provide direct download links** with descriptions\n4. **Suggest related documents** that might be helpful\n\n## DEPARTMENT ROUTING:\n- **Building/Construction** → Search Building Permits folder + Building Department info\n- **Planning/Zoning** → Search Planning Applications + Board appeals folders  \n- **Finance/Tax** → Search Fee Schedule + Budget + Financial Reports folders\n- **General Services** → Use knowledge base + Airtable search\n\n## CONCERN REPORTING:\nWhen residents report issues:\n1. **Collect**: Name, contact, concern type, description, location\n2. **Generate case number**: WL-YYYY-#### format\n3. **Log in Google Sheets** with all details\n4. **Provide department contact** for follow-up\n\n## RESPONSE FORMAT:\n- **Professional but friendly tone**\n- **Clickable phone links**: [(440) 871-3300](tel:4408713300)\n- **Direct document links** when available\n- **Clear next steps** for residents\n- **Department contacts** for complex issues\n\nWhen asked about upcoming events or the next event use the date and time node to get the current date and return date specific information. \n**Main City Contact**: [(440) 871-3300](tel:4408713300)"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.1,
+      "position": [
+        912,
+        -224
+      ],
+      "id": "d032ead5-e64c-4145-8971-8fbba58671e5",
+      "name": "AI Agent",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "outputFieldName": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Output_Field_Name', ``, 'string') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dateTimeTool",
+      "typeVersion": 2,
+      "position": [
+        1008,
+        224
+      ],
+      "id": "28e85fa9-6869-4c6e-8584-3bf14d3986f2",
+      "name": "Date & Time"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1UVnkgK-h7lxet659FPLgZbrDI8riMWyF55tk1uFGbhs",
+          "mode": "list",
+          "cachedResultName": "Chatbot Responses",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1UVnkgK-h7lxet659FPLgZbrDI8riMWyF55tk1uFGbhs/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1UVnkgK-h7lxet659FPLgZbrDI8riMWyF55tk1uFGbhs/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            " Your full name": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('_Your_full_name', ``, 'string') }}",
+            "Your contact information (phone number or email)": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Your_contact_information__phone_number_or_email_', ``, 'string') }}",
+            "The type of concern (e.g., pothole, streetlight, noise, etc.) ": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('The_type_of_concern__e_g___pothole__streetlight__noise__etc___', ``, 'string') }}",
+            " detailed description of the issue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('_detailed_description_of_the_issue', ``, 'string') }}",
+            "The location or address where the issue is occurring": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('The_location_or_address_where_the_issue_is_occurring', ``, 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": " Your full name",
+              "displayName": " Your full name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Your contact information (phone number or email)",
+              "displayName": "Your contact information (phone number or email)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "The type of concern (e.g., pothole, streetlight, noise, etc.) ",
+              "displayName": "The type of concern (e.g., pothole, streetlight, noise, etc.) ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": " detailed description of the issue",
+              "displayName": " detailed description of the issue",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "The location or address where the issue is occurring",
+              "displayName": "The location or address where the issue is occurring",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.6,
+      "position": [
+        1136,
+        224
+      ],
+      "id": "3c6b40ab-e41c-467a-a0f5-e8cf0b9e47bd",
+      "name": "Append row in sheet in Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "olsPJ6tmwouBqolq",
+          "name": "Google Sheets account 3"
+        }
+      },
+      "notes": "Tool Description: \"Log resident concerns with case numbers. Use this when someone reports an issue that needs city attention.\""
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "queryString": "={{ $fromAI('search_query', 'Search terms for finding documents in Google Drive', 'string') }}",
+        "filter": {},
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDriveTool",
+      "typeVersion": 3,
+      "position": [
+        1312,
+        224
+      ],
+      "id": "61054408-ac38-4b47-9de2-7e89ab12a2d2",
+      "name": "Search files and folders in Google Drive",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "K0F2R6lEjP787QpP",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "cityName": "Westlake, Ohio"
+      },
+      "type": "n8n-nodes-base.openWeatherMapTool",
+      "typeVersion": 1,
+      "position": [
+        1456,
+        224
+      ],
+      "id": "8ee82f75-c6be-4622-9b55-f9d9503438a9",
+      "name": "OpenWeatherMap",
+      "credentials": {
+        "openWeatherMapApi": {
+          "id": "1v5zkAtwfztEqciZ",
+          "name": "OpenWeatherMap account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "chat_sessions",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "session_id",
+              "fieldValue": "=={{ $('When chat message received').item.json.sessionId || 'session-' + new Date().getTime() + '-' + Math.random().toString(36).substring(7) }}"
+            },
+            {
+              "fieldId": "user_message",
+              "fieldValue": "={{ $('When chat message received').item.json.message }}"
+            },
+            {
+              "fieldId": "bot_response",
+              "fieldValue": "={{ $('AI Agent').item.json.output }}"
+            },
+            {
+              "fieldId": "user_ip",
+              "fieldValue": "={{ $('When chat message received').item.json.headers ? ($('When chat message received').item.json.headers['x-forwarded-for'] || $('When chat message received').item.json.headers['x-real-ip'] || 'unknown') : 'unknown' }}"
+            },
+            {
+              "fieldId": "user_agent",
+              "fieldValue": "={{ $('When chat message received').item.json.headers ? ($('When chat message received').item.json.headers['user-agent'] || 'unknown') : 'unknown' }}"
+            },
+            {
+              "fieldId": "timestamp",
+              "fieldValue": "={{ new Date().toISOString() }}"
+            },
+            {
+              "fieldId": "conversation_context",
+              "fieldValue": "=={{ JSON.stringify({session_info: \"No memory tracking\"}) }}"
+            },
+            {
+              "fieldId": "tools_used",
+              "fieldValue": "={{ Array.isArray($('AI Agent').item.json.usedTools) ? $('AI Agent').item.json.usedTools : [] }}"
+            },
+            {
+              "fieldId": "response_time_ms",
+              "fieldValue": "={{ $('AI Agent').item.json.executionTime || null }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1344,
+        -224
+      ],
+      "id": "acccb532-b9a3-4841-b954-32151ecd97aa",
+      "name": "Create a row",
+      "credentials": {
+        "supabaseApi": {
+          "id": "gA0Kub3ZvXX7vOof",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableName": "westlake_chat_memory",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        624,
+        240
+      ],
+      "id": "dbf7d730-d51b-4804-9a69-ab05c756c230",
+      "name": "Postgres Chat Memory",
+      "credentials": {
+        "postgres": {
+          "id": "BnqH1wNSZUorhlay",
+          "name": "Postgres account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pinecone Vector Store": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Pinecone Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Date & Time": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet in Google Sheets": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search files and folders in Google Drive": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenWeatherMap": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Create a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a row": {
+      "main": [
+        []
+      ]
+    },
+    "Postgres Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "32fd7663-e2b4-4d85-9a20-3dd636013aba",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "d33e12e796ff0eb758f5157d5b7785219f3eddef87b1e9eb3883f7c635400311"
+  },
+  "id": "CLbMOiRMN8iMfG7j",
+  "tags": []
+}

@@ -100,6 +100,7 @@ export default function WestlakeChatbot() {
       } else {
         // Handle as a simple text response
         const botResponseContent =
+          data.bot_response ||
           data.response ||
           data.message ||
           data.text ||
