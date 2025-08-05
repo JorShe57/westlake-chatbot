@@ -54,6 +54,9 @@ export const auth = {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      }
     })
 
     if (error) throw error
@@ -135,6 +138,54 @@ export const auth = {
   async isAdmin(userId: string) {
     const profile = await this.getUserProfile(userId)
     return profile.role === 'admin'
+  },
+
+  // Request password reset
+  async resetPassword(email: string) {
+    if (!supabase) throw new Error('Supabase not configured')
+    
+    const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/reset-password`,
+    })
+    
+    if (error) throw error
+    return { data, error }
+  },
+
+  // Update password after reset
+  async updatePassword(newPassword: string) {
+    if (!supabase) throw new Error('Supabase not configured')
+    
+    const { data, error } = await supabase.auth.updateUser({
+      password: newPassword
+    })
+    
+    if (error) throw error
+    return { data, error }
+  },
+
+  // Send verification email
+  async sendVerificationEmail(email: string) {
+    if (!supabase) throw new Error('Supabase not configured')
+    
+    const { data, error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
+    })
+    
+    if (error) throw error
+    return { data, error }
+  },
+
+  // Verify email with token
+  async verifyEmail(token: string) {
+    if (!supabase) throw new Error('Supabase not configured')
+    
+    // This is handled by the callback route
+    return { success: true }
   }
 }
 

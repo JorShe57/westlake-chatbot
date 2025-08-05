@@ -12,6 +12,9 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<void>
   signUp: (email: string, password: string, role?: 'admin' | 'user') => Promise<void>
   signOut: () => Promise<void>
+  resetPassword: (email: string) => Promise<void>
+  updatePassword: (newPassword: string) => Promise<void>
+  sendVerificationEmail: (email: string) => Promise<void>
   isAdmin: boolean
   isAuthenticated: boolean
   error: string | null
@@ -184,6 +187,70 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw error
     }
   }
+  
+  const resetPassword = async (email: string) => {
+    setError(null)
+    setLoading(true)
+    
+    try {
+      if (supabase && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+        // Use Supabase authentication
+        await auth.resetPassword(email)
+      } else {
+        // For fallback, we'll just simulate success
+        // In a real app, you'd need to implement a fallback mechanism
+        console.log('Password reset requested for:', email)
+      }
+    } catch (error: any) {
+      const errorMessage = error.message || 'Password reset failed'
+      setError(errorMessage)
+      throw error
+    } finally {
+      setLoading(false)
+    }
+  }
+  
+  const updatePassword = async (newPassword: string) => {
+    setError(null)
+    setLoading(true)
+    
+    try {
+      if (supabase && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+        // Use Supabase authentication
+        await auth.updatePassword(newPassword)
+      } else {
+        // For fallback, we'll just simulate success
+        console.log('Password updated')
+      }
+    } catch (error: any) {
+      const errorMessage = error.message || 'Password update failed'
+      setError(errorMessage)
+      throw error
+    } finally {
+      setLoading(false)
+    }
+  }
+  
+  const sendVerificationEmail = async (email: string) => {
+    setError(null)
+    setLoading(true)
+    
+    try {
+      if (supabase && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+        // Use Supabase authentication
+        await auth.sendVerificationEmail(email)
+      } else {
+        // For fallback, we'll just simulate success
+        console.log('Verification email sent to:', email)
+      }
+    } catch (error: any) {
+      const errorMessage = error.message || 'Failed to send verification email'
+      setError(errorMessage)
+      throw error
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const clearError = () => {
     setError(null)
@@ -196,6 +263,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signIn,
     signUp,
     signOut,
+    resetPassword,
+    updatePassword,
+    sendVerificationEmail,
     isAdmin,
     isAuthenticated,
     error,

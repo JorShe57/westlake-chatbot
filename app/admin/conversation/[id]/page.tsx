@@ -15,9 +15,12 @@ import {
   Smartphone,
   Globe,
   MessageSquare,
-  AlertTriangle
+  AlertTriangle,
+  Loader2
 } from "lucide-react"
 import MessageRenderer from "@/components/message-renderer"
+import { getConversationDetails } from "@/lib/admin-data"
+import { isSupabaseConfigured } from "@/lib/chat-storage"
 
 interface Message {
   id: string
@@ -48,70 +51,123 @@ export default function ConversationDetail() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Mock data - replace with actual API call
-    const mockConversation: ConversationDetails = {
-      id: params.id as string,
-      sessionId: "abc123",
-      startTime: "2024-01-15T10:30:00Z",
-      endTime: "2024-01-15T10:45:00Z",
-      status: "completed",
-      messageCount: 12,
-      userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
-      ipAddress: "192.168.1.100",
-      location: "Westlake, OH",
-      messages: [
-        {
-          id: "1",
-          isUser: false,
-          content: "Hello! I'm the City of Westlake virtual assistant. How can I help you today? Feel free to ask about city services, department information, permits, or general questions.",
-          timestamp: "2024-01-15T10:30:00Z",
-          formatted: false
-        },
-        {
-          id: "2",
-          isUser: true,
-          content: "How do I apply for a building permit?",
-          timestamp: "2024-01-15T10:31:00Z",
-          formatted: false
-        },
-        {
-          id: "3",
-          isUser: false,
-          content: "To apply for a building permit in Westlake, you'll need to follow these steps:\n\n1. **Visit the Building Department** at City Hall (27700 Hilliard Blvd)\n2. **Complete the application form** - available online or in person\n3. **Submit required documents** including:\n   - Site plan\n   - Construction drawings\n   - Property survey\n4. **Pay the permit fee** based on project value\n5. **Wait for approval** (typically 5-10 business days)\n\nYou can also apply online through our portal: https://egov.cityofwestlake.org\n\nFor questions, call the Building Department at (440) 871-3300.",
-          timestamp: "2024-01-15T10:31:30Z",
-          formatted: true,
-          message: [
-            { type: "text", content: "To apply for a building permit in Westlake, you'll need to follow these steps:" },
-            { type: "list-item", content: "**Visit the Building Department** at City Hall (27700 Hilliard Blvd)" },
-            { type: "list-item", content: "**Complete the application form** - available online or in person" },
-            { type: "list-item", content: "**Submit required documents** including:" },
-            { type: "list-item", content: "   - Site plan" },
-            { type: "list-item", content: "   - Construction drawings" },
-            { type: "list-item", content: "   - Property survey" },
-            { type: "list-item", content: "**Pay the permit fee** based on project value" },
-            { type: "list-item", content: "**Wait for approval** (typically 5-10 business days)" },
-            { type: "text", content: "You can also apply online through our portal: https://egov.cityofwestlake.org\n\nFor questions, call the Building Department at (440) 871-3300." }
-          ]
-        },
-        {
-          id: "4",
-          isUser: true,
-          content: "What are the fees for a residential addition?",
-          timestamp: "2024-01-15T10:33:00Z",
-          formatted: false
-        },
-        {
-          id: "5",
-          isUser: false,
-          content: "Building permit fees for residential additions are calculated based on the total project value:\n\n- **$0 - $1,000**: $50\n- **$1,001 - $5,000**: $50 + $5 per $1,000 over $1,000\n- **$5,001 - $10,000**: $70 + $4 per $1,000 over $5,000\n- **Over $10,000**: $90 + $3 per $1,000 over $10,000\n\nFor example, a $25,000 addition would cost approximately $135 in permit fees.\n\nYou can get an exact quote by calling the Building Department at (440) 871-3300 or visiting City Hall.",
-          timestamp: "2024-01-15T10:33:30Z",
-          formatted: false
+    const loadConversation = async () => {
+      setLoading(true)
+      const conversationId = params.id as string
+      
+      try {
+        // Check if Supabase is configured
+        const supabaseEnabled = isSupabaseConfigured()
+        
+        if (supabaseEnabled) {
+          // Load real data from Supabase
+          const data = await getConversationDetails(conversationId)
+          
+          if (data) {
+            // Transform data to match the ConversationDetails interface
+            const conversationData: ConversationDetails = {
+              id: data.conversation.id,
+              sessionId: data.conversation.session_id,
+              startTime: data.conversation.start_time || new Date().toISOString(),
+              endTime: data.conversation.end_time,
+              status: data.conversation.status as "active" | "completed" | "error",
+              messageCount: data.messages.length,
+              userAgent: data.conversation.user_agent || "Unknown",
+              ipAddress: data.conversation.ip_address || "Unknown",
+              location: data.conversation.location || "Unknown",
+              messages: data.messages.map((msg: any) => ({
+                id: msg.id,
+                isUser: msg.is_user,
+                content: msg.content,
+                timestamp: msg.timestamp || msg.created_at,
+                formatted: msg.formatted || false,
+                message: msg.message_data || undefined
+              }))
+            }
+            
+            setConversation(conversationData)
+          } else {
+            // If no data found, load mock data
+            loadMockData()
+          }
+        } else {
+          // If Supabase is not configured, load mock data
+          loadMockData()
         }
-      ]
+      } catch (error) {
+        console.error("Error loading conversation:", error)
+        loadMockData()
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    const loadMockData = () => {
+      const mockConversation: ConversationDetails = {
+        id: params.id as string,
+        sessionId: "abc123",
+        startTime: "2024-01-15T10:30:00Z",
+        endTime: "2024-01-15T10:45:00Z",
+        status: "completed",
+        messageCount: 12,
+        userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+        ipAddress: "192.168.1.100",
+        location: "Westlake, OH",
+        messages: [
+          {
+            id: "1",
+            isUser: false,
+            content: "Hello! I'm the City of Westlake virtual assistant. How can I help you today? Feel free to ask about city services, department information, permits, or general questions.",
+            timestamp: "2024-01-15T10:30:00Z",
+            formatted: false
+          },
+          {
+            id: "2",
+            isUser: true,
+            content: "How do I apply for a building permit?",
+            timestamp: "2024-01-15T10:31:00Z",
+            formatted: false
+          },
+          {
+            id: "3",
+            isUser: false,
+            content: "To apply for a building permit in Westlake, you'll need to follow these steps:\n\n1. **Visit the Building Department** at City Hall (27700 Hilliard Blvd)\n2. **Complete the application form** - available online or in person\n3. **Submit required documents** including:\n   - Site plan\n   - Construction drawings\n   - Property survey\n4. **Pay the permit fee** based on project value\n5. **Wait for approval** (typically 5-10 business days)\n\nYou can also apply online through our portal: https://egov.cityofwestlake.org\n\nFor questions, call the Building Department at (440) 871-3300.",
+            timestamp: "2024-01-15T10:31:30Z",
+            formatted: true,
+            message: [
+              { type: "text", content: "To apply for a building permit in Westlake, you'll need to follow these steps:" },
+              { type: "list-item", content: "**Visit the Building Department** at City Hall (27700 Hilliard Blvd)" },
+              { type: "list-item", content: "**Complete the application form** - available online or in person" },
+              { type: "list-item", content: "**Submit required documents** including:" },
+              { type: "list-item", content: "   - Site plan" },
+              { type: "list-item", content: "   - Construction drawings" },
+              { type: "list-item", content: "   - Property survey" },
+              { type: "list-item", content: "**Pay the permit fee** based on project value" },
+              { type: "list-item", content: "**Wait for approval** (typically 5-10 business days)" },
+              { type: "text", content: "You can also apply online through our portal: https://egov.cityofwestlake.org\n\nFor questions, call the Building Department at (440) 871-3300." }
+            ]
+          },
+          {
+            id: "4",
+            isUser: true,
+            content: "What are the fees for a residential addition?",
+            timestamp: "2024-01-15T10:33:00Z",
+            formatted: false
+          },
+          {
+            id: "5",
+            isUser: false,
+            content: "Building permit fees for residential additions are calculated based on the total project value:\n\n- **$0 - $1,000**: $50\n- **$1,001 - $5,000**: $50 + $5 per $1,000 over $1,000\n- **$5,001 - $10,000**: $70 + $4 per $1,000 over $5,000\n- **Over $10,000**: $90 + $3 per $1,000 over $10,000\n\nFor example, a $25,000 addition would cost approximately $135 in permit fees.\n\nYou can get an exact quote by calling the Building Department at (440) 871-3300 or visiting City Hall.",
+            timestamp: "2024-01-15T10:33:30Z",
+            formatted: false
+          }
+        ]
+      }
+
+      setConversation(mockConversation)
     }
 
-    setConversation(mockConversation)
-    setLoading(false)
+    loadConversation()
   }, [params.id])
 
   const handleExport = () => {
@@ -141,7 +197,7 @@ export default function ConversationDetail() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2d5016] mx-auto"></div>
+          <Loader2 className="h-8 w-8 animate-spin text-[#2d5016] mx-auto" />
           <p className="mt-2 text-gray-600">Loading conversation...</p>
         </div>
       </div>

@@ -94,7 +94,15 @@ export default function SignIn() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">Password</Label>
+                  <Link 
+                    href="/auth/forgot-password" 
+                    className="text-xs text-[#2d5016] hover:underline"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
                 <div className="relative">
                   <Input
                     id="password"
@@ -138,7 +146,7 @@ export default function SignIn() {
               </Button>
             </form>
 
-            <div className="mt-6 text-center">
+            <div className="mt-6 text-center space-y-2">
               <p className="text-sm text-gray-600">
                 Don't have an account?{" "}
                 <Link 
@@ -146,6 +154,15 @@ export default function SignIn() {
                   className="text-[#2d5016] hover:underline font-medium"
                 >
                   Sign up
+                </Link>
+              </p>
+              <p className="text-sm text-gray-600">
+                Need to verify your email?{" "}
+                <Link 
+                  href="/auth/verify-email" 
+                  className="text-[#2d5016] hover:underline font-medium"
+                >
+                  Resend verification
                 </Link>
               </p>
             </div>

@@ -21,32 +21,22 @@ import {
   Calendar,
   TrendingUp,
   AlertTriangle,
-  CheckCircle
+  CheckCircle,
+  Loader2
 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { Menu } from "@/components/ui/menu"
 import { config } from "@/lib/config"
 import { useAuth } from "@/contexts/AuthContext"
-
-interface AdminStats {
-  totalConversations: number
-  activeSessions: number
-  totalMessages: number
-  averageResponseTime: number
-  satisfactionRate: number
-  errorRate: number
-}
-
-interface RecentConversation {
-  id: string
-  sessionId: string
-  startTime: string
-  lastMessage: string
-  messageCount: number
-  status: "active" | "completed" | "error"
-  userAgent: string
-}
+import { isSupabaseConfigured } from "@/lib/chat-storage"
+import { 
+  getAdminStats, 
+  getRecentConversations, 
+  getUsers,
+  AdminStats,
+  RecentConversation
+} from "@/lib/admin-data"
 
 export default function AdminPortal() {
   const router = useRouter()
@@ -62,15 +52,55 @@ export default function AdminPortal() {
     errorRate: 0
   })
   const [recentConversations, setRecentConversations] = useState<RecentConversation[]>([])
+  const [isDataLoading, setIsDataLoading] = useState(false)
+  const [supabaseEnabled, setSupabaseEnabled] = useState(false)
+  const [users, setUsers] = useState<any[]>([])
+
+  // Load data when authenticated
+  useEffect(() => {
+    if (isAuthenticated && isAdmin) {
+      loadData()
+      
+      // Check if Supabase is configured
+      setSupabaseEnabled(isSupabaseConfigured())
+    }
+  }, [isAuthenticated, isAdmin])
 
   // Handle login with authentication
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
       await signIn(username, password)
-      loadMockData()
+      // Data will be loaded via the useEffect
     } catch (error: any) {
       // Error is handled by the context
+    }
+  }
+
+  const loadData = async () => {
+    setIsDataLoading(true)
+    
+    try {
+      if (supabaseEnabled) {
+        // Load real data from Supabase
+        const statsData = await getAdminStats()
+        setStats(statsData)
+        
+        const conversationsData = await getRecentConversations(10)
+        setRecentConversations(conversationsData)
+        
+        const usersData = await getUsers()
+        setUsers(usersData)
+      } else {
+        // Load mock data if Supabase is not configured
+        loadMockData()
+      }
+    } catch (error) {
+      console.error("Error loading admin data:", error)
+      // Fallback to mock data
+      loadMockData()
+    } finally {
+      setIsDataLoading(false)
     }
   }
 
@@ -112,6 +142,10 @@ export default function AdminPortal() {
         status: "error",
         userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
       }
+    ])
+    
+    setUsers([
+      { id: '1', email: 'admin@westlake.org', role: 'admin', is_active: true, last_login: new Date().toISOString() }
     ])
   }
 
@@ -226,25 +260,25 @@ export default function AdminPortal() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs defaultValue="dashboard" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="dashboard" className="flex items-center space-x-2">
-              <BarChart3 className="w-4 h-4" />
+          <TabsList className="grid w-full grid-cols-5 gap-1 sm:gap-2 px-0.5 sm:px-1">
+            <TabsTrigger value="dashboard" className="flex items-center space-x-1 sm:space-x-2 px-1 sm:px-2 py-1.5 sm:py-2 text-xs sm:text-sm">
+              <BarChart3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span className="hidden sm:inline">Dashboard</span>
             </TabsTrigger>
-            <TabsTrigger value="conversations" className="flex items-center space-x-2">
-              <MessageSquare className="w-4 h-4" />
+            <TabsTrigger value="conversations" className="flex items-center space-x-1 sm:space-x-2 px-1 sm:px-2 py-1.5 sm:py-2 text-xs sm:text-sm">
+              <MessageSquare className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span className="hidden sm:inline">Conversations</span>
             </TabsTrigger>
-            <TabsTrigger value="analytics" className="flex items-center space-x-2">
-              <TrendingUp className="w-4 h-4" />
+            <TabsTrigger value="analytics" className="flex items-center space-x-1 sm:space-x-2 px-1 sm:px-2 py-1.5 sm:py-2 text-xs sm:text-sm">
+              <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span className="hidden sm:inline">Analytics</span>
             </TabsTrigger>
-            <TabsTrigger value="users" className="flex items-center space-x-2">
-              <Users className="w-4 h-4" />
+            <TabsTrigger value="users" className="flex items-center space-x-1 sm:space-x-2 px-1 sm:px-2 py-1.5 sm:py-2 text-xs sm:text-sm">
+              <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span className="hidden sm:inline">Users</span>
             </TabsTrigger>
-            <TabsTrigger value="settings" className="flex items-center space-x-2">
-              <Settings className="w-4 h-4" />
+            <TabsTrigger value="settings" className="flex items-center space-x-1 sm:space-x-2 px-1 sm:px-2 py-1.5 sm:py-2 text-xs sm:text-sm">
+              <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span className="hidden sm:inline">Settings</span>
             </TabsTrigger>
           </TabsList>
@@ -252,103 +286,186 @@ export default function AdminPortal() {
           {/* Dashboard Tab */}
           <TabsContent value="dashboard" className="space-y-6">
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Conversations</CardTitle>
-                  <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
+                  <CardTitle className="text-xs sm:text-sm font-medium">Total Conversations</CardTitle>
+                  <MessageSquare className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats.totalConversations.toLocaleString()}</div>
-                  <p className="text-xs text-muted-foreground">
-                    +12% from last month
-                  </p>
+                <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6 pt-0">
+                  {isDataLoading ? (
+                    <div className="flex items-center space-x-2">
+                      <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
+                      <span className="text-xs sm:text-sm text-muted-foreground">Loading...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="text-xl sm:text-2xl font-bold">{stats.totalConversations.toLocaleString()}</div>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">
+                        {supabaseEnabled ? 'From Supabase database' : 'Using mock data'}
+                      </p>
+                    </>
+                  )}
                 </CardContent>
               </Card>
 
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Active Sessions</CardTitle>
-                  <Users className="h-4 w-4 text-muted-foreground" />
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
+                  <CardTitle className="text-xs sm:text-sm font-medium">Active Sessions</CardTitle>
+                  <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats.activeSessions}</div>
-                  <p className="text-xs text-muted-foreground">
-                    Currently online
-                  </p>
+                <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6 pt-0">
+                  {isDataLoading ? (
+                    <div className="flex items-center space-x-2">
+                      <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
+                      <span className="text-xs sm:text-sm text-muted-foreground">Loading...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="text-xl sm:text-2xl font-bold">{stats.activeSessions}</div>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">
+                        Currently online
+                      </p>
+                    </>
+                  )}
                 </CardContent>
               </Card>
 
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Satisfaction Rate</CardTitle>
-                  <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
+                  <CardTitle className="text-xs sm:text-sm font-medium">Satisfaction Rate</CardTitle>
+                  <CheckCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats.satisfactionRate}%</div>
-                  <p className="text-xs text-muted-foreground">
-                    +2.1% from last week
-                  </p>
+                <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6 pt-0">
+                  {isDataLoading ? (
+                    <div className="flex items-center space-x-2">
+                      <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
+                      <span className="text-xs sm:text-sm text-muted-foreground">Loading...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="text-xl sm:text-2xl font-bold">{stats.satisfactionRate}%</div>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">
+                        Based on user feedback
+                      </p>
+                    </>
+                  )}
                 </CardContent>
               </Card>
 
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Avg Response Time</CardTitle>
-                  <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
+                  <CardTitle className="text-xs sm:text-sm font-medium">Avg Response Time</CardTitle>
+                  <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats.averageResponseTime}s</div>
-                  <p className="text-xs text-muted-foreground">
-                    -0.3s from last week
-                  </p>
+                <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6 pt-0">
+                  {isDataLoading ? (
+                    <div className="flex items-center space-x-2">
+                      <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
+                      <span className="text-xs sm:text-sm text-muted-foreground">Loading...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="text-xl sm:text-2xl font-bold">{stats.averageResponseTime}s</div>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">
+                        Average bot response time
+                      </p>
+                    </>
+                  )}
                 </CardContent>
               </Card>
             </div>
 
             {/* Recent Activity */}
             <Card>
-              <CardHeader>
-                <CardTitle>Recent Conversations</CardTitle>
-                <CardDescription>
-                  Latest chatbot interactions
-                </CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between px-3 sm:px-6 pt-3 sm:pt-6 pb-2 sm:pb-4">
+                <div>
+                  <CardTitle className="text-base sm:text-lg">Recent Conversations</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">
+                    Latest chatbot interactions
+                  </CardDescription>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={loadData}
+                  disabled={isDataLoading}
+                  className="h-8 text-xs sm:text-sm px-2 sm:px-3"
+                >
+                  {isDataLoading ? (
+                    <>
+                      <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 animate-spin" />
+                      <span className="hidden sm:inline">Refreshing...</span>
+                      <span className="sm:hidden">...</span>
+                    </>
+                  ) : (
+                    <>Refresh</>
+                  )}
+                </Button>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {recentConversations.map((conversation) => (
-                    <div key={conversation.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center space-x-4">
-                        <Avatar>
-                          <AvatarFallback>
-                            {conversation.sessionId.slice(0, 2).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium">{conversation.lastMessage}</p>
-                          <p className="text-sm text-gray-500">
-                            {new Date(conversation.startTime).toLocaleString()}
-                          </p>
+              <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
+                {isDataLoading ? (
+                  <div className="flex items-center justify-center py-6 sm:py-8">
+                    <Loader2 className="h-6 w-6 sm:h-8 sm:w-8 animate-spin text-gray-400" />
+                  </div>
+                ) : recentConversations.length > 0 ? (
+                  <div className="space-y-2 sm:space-y-4">
+                    {recentConversations.map((conversation) => (
+                      <div key={conversation.id} className="flex items-center justify-between p-2 sm:p-4 border rounded-lg">
+                        <div className="flex items-center space-x-2 sm:space-x-4">
+                          <Avatar className="h-8 w-8 sm:h-10 sm:w-10">
+                            <AvatarFallback className="text-xs sm:text-sm">
+                              {conversation.sessionId.slice(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-medium text-xs sm:text-sm line-clamp-1">{conversation.lastMessage}</p>
+                            <p className="text-[10px] sm:text-xs text-gray-500">
+                              {new Date(conversation.startTime).toLocaleString([], {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex flex-col sm:flex-row items-end sm:items-center space-y-1 sm:space-y-0 sm:space-x-2">
+                          <Badge 
+                            variant={
+                              conversation.status === "active" ? "default" :
+                              conversation.status === "completed" ? "secondary" : "destructive"
+                            }
+                            className="text-[10px] sm:text-xs h-5 sm:h-6"
+                          >
+                            {conversation.status}
+                          </Badge>
+                          <span className="text-[10px] sm:text-xs text-gray-500 whitespace-nowrap">
+                            {conversation.messageCount} msgs
+                          </span>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <Badge 
-                          variant={
-                            conversation.status === "active" ? "default" :
-                            conversation.status === "completed" ? "secondary" : "destructive"
-                          }
-                        >
-                          {conversation.status}
-                        </Badge>
-                        <span className="text-sm text-gray-500">
-                          {conversation.messageCount} messages
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-6 sm:py-8 text-gray-500">
+                    <MessageSquare className="w-8 h-8 sm:w-12 sm:h-12 mx-auto mb-3 sm:mb-4 text-gray-300" />
+                    <p className="text-sm sm:text-base">No conversations found</p>
+                    <p className="text-xs sm:text-sm">Start chatting to see conversation history</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
+            
+            {!supabaseEnabled && (
+              <Alert className="text-xs sm:text-sm">
+                <AlertDescription className="text-xs sm:text-sm">
+                  Supabase is not configured. Using mock data for demonstration purposes. 
+                  To use real data, please set up Supabase credentials in your environment variables.
+                </AlertDescription>
+              </Alert>
+            )}
           </TabsContent>
 
           {/* Conversations Tab */}

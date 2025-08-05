@@ -81,9 +81,6 @@ export function LinkParser({ content }: MessageContentProps) {
       return match
     })
 
-    // Debug: Let's log what we're working with
-    console.log("Processing text:", text)
-
     // Define URL regex
     const urlRegex = /(https?:\/\/[^\s)]+)/g
 
@@ -101,7 +98,7 @@ export function LinkParser({ content }: MessageContentProps) {
 
     // Process URLs first
     processedText = processedText.replace(urlRegex, (match) => {
-      console.log("Found URL:", match)
+      // Found URL
       const title = extractContextTitle(text, match)
       return `__URL_START__${match}__URL_TITLE__${title}__URL_END__`
     })
@@ -109,7 +106,7 @@ export function LinkParser({ content }: MessageContentProps) {
     // Process each phone pattern
     phonePatterns.forEach((pattern, index) => {
       processedText = processedText.replace(pattern, (match) => {
-        console.log(`Found phone (pattern ${index + 1}):`, match)
+        // Found phone match
         // Clean the number for tel: link
         const digitsOnly = match.replace(/\D/g, "")
         let telLink = digitsOnly
@@ -133,14 +130,12 @@ export function LinkParser({ content }: MessageContentProps) {
       })
     })
 
-    console.log("Processed text:", processedText)
-
     // Split by our markers and render
     const parts = processedText.split(
       /(__URL_START__[^_]+__URL_TITLE__[^_]+__URL_END__|__PHONE_START__[^_]+__PHONE_DISPLAY__[^_]+__PHONE_END__)/,
     )
 
-    console.log("Split parts:", parts)
+    // Process the split parts
 
     return parts.map((part, index) => {
       // Handle URL markers
@@ -168,7 +163,7 @@ export function LinkParser({ content }: MessageContentProps) {
         const phoneMatch = part.match(/__PHONE_START__([^_]+)__PHONE_DISPLAY__([^_]+)__PHONE_END__/)
         if (phoneMatch) {
           const [, telLink, displayText] = phoneMatch
-          console.log("Rendering phone link:", telLink, displayText)
+          // Prepare phone link rendering
 
           // Check if it's a toll-free number
           const isTollFree = /(?:800|888|877|866|855|844|833|822)/.test(displayText)
