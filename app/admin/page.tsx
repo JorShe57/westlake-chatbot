@@ -22,13 +22,16 @@ import {
   TrendingUp,
   AlertTriangle,
   CheckCircle,
-  Loader2
+  Loader2,
+  RefreshCw,
+  Clock
 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { Menu } from "@/components/ui/menu"
 import { config } from "@/lib/config"
 import { useAuth } from "@/contexts/AuthContext"
+import { Navigation } from "@/components/navigation"
 import { isSupabaseConfigured } from "@/lib/chat-storage"
 import { 
   getAdminStats, 
@@ -233,29 +236,12 @@ export default function AdminPortal() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <h1 className="text-xl font-semibold text-[#2d5016]">
-                Westlake Chatbot Admin
-              </h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Badge variant="secondary" className="bg-green-100 text-green-800">
-                <CheckCircle className="w-3 h-3 mr-1" />
-                System Online
-              </Badge>
-              <Button variant="ghost" onClick={handleLogout} className="text-gray-600">
-                <LogOut className="w-4 h-4 mr-2" />
-                Logout
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      {/* Navigation */}
+      <Navigation 
+        title="Admin Portal" 
+        subtitle="Westlake Chatbot Management"
+      />
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -286,44 +272,50 @@ export default function AdminPortal() {
           {/* Dashboard Tab */}
           <TabsContent value="dashboard" className="space-y-6">
             {/* Stats Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
-                  <CardTitle className="text-xs sm:text-sm font-medium">Total Conversations</CardTitle>
-                  <MessageSquare className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
+            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+              <Card className="border-l-4 border-l-blue-500 hover:shadow-lg transition-shadow duration-200">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 sm:px-6 pt-4 sm:pt-6">
+                  <CardTitle className="text-sm sm:text-base font-semibold text-gray-700">Total Conversations</CardTitle>
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <MessageSquare className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+                  </div>
                 </CardHeader>
-                <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6 pt-0">
+                <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6 pt-0">
                   {isDataLoading ? (
                     <div className="flex items-center space-x-2">
-                      <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
-                      <span className="text-xs sm:text-sm text-muted-foreground">Loading...</span>
+                      <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin text-blue-500" />
+                      <span className="text-sm text-gray-500">Loading...</span>
                     </div>
                   ) : (
                     <>
-                      <div className="text-xl sm:text-2xl font-bold">{stats.totalConversations.toLocaleString()}</div>
-                      <p className="text-[10px] sm:text-xs text-muted-foreground">
-                        {supabaseEnabled ? 'From Supabase database' : 'Using mock data'}
+                      <div className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">{stats.totalConversations.toLocaleString()}</div>
+                      <p className="text-xs text-gray-500 flex items-center">
+                        <TrendingUp className="w-3 h-3 mr-1" />
+                        {supabaseEnabled ? 'Live data' : 'Demo mode'}
                       </p>
                     </>
                   )}
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
-                  <CardTitle className="text-xs sm:text-sm font-medium">Active Sessions</CardTitle>
-                  <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
+              <Card className="border-l-4 border-l-green-500 hover:shadow-lg transition-shadow duration-200">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 sm:px-6 pt-4 sm:pt-6">
+                  <CardTitle className="text-sm sm:text-base font-semibold text-gray-700">Active Sessions</CardTitle>
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <Users className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
+                  </div>
                 </CardHeader>
-                <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6 pt-0">
+                <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6 pt-0">
                   {isDataLoading ? (
                     <div className="flex items-center space-x-2">
-                      <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
-                      <span className="text-xs sm:text-sm text-muted-foreground">Loading...</span>
+                      <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin text-green-500" />
+                      <span className="text-sm text-gray-500">Loading...</span>
                     </div>
                   ) : (
                     <>
-                      <div className="text-xl sm:text-2xl font-bold">{stats.activeSessions}</div>
-                      <p className="text-[10px] sm:text-xs text-muted-foreground">
+                      <div className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">{stats.activeSessions}</div>
+                      <p className="text-xs text-gray-500 flex items-center">
+                        <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse mr-2"></div>
                         Currently online
                       </p>
                     </>
@@ -331,44 +323,50 @@ export default function AdminPortal() {
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
-                  <CardTitle className="text-xs sm:text-sm font-medium">Satisfaction Rate</CardTitle>
-                  <CheckCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
+              <Card className="border-l-4 border-l-purple-500 hover:shadow-lg transition-shadow duration-200">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 sm:px-6 pt-4 sm:pt-6">
+                  <CardTitle className="text-sm sm:text-base font-semibold text-gray-700">Satisfaction Rate</CardTitle>
+                  <div className="p-2 bg-purple-100 rounded-lg">
+                    <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600" />
+                  </div>
                 </CardHeader>
-                <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6 pt-0">
+                <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6 pt-0">
                   {isDataLoading ? (
                     <div className="flex items-center space-x-2">
-                      <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
-                      <span className="text-xs sm:text-sm text-muted-foreground">Loading...</span>
+                      <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin text-purple-500" />
+                      <span className="text-sm text-gray-500">Loading...</span>
                     </div>
                   ) : (
                     <>
-                      <div className="text-xl sm:text-2xl font-bold">{stats.satisfactionRate}%</div>
-                      <p className="text-[10px] sm:text-xs text-muted-foreground">
-                        Based on user feedback
+                      <div className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">{stats.satisfactionRate}%</div>
+                      <p className="text-xs text-gray-500 flex items-center">
+                        <CheckCircle className="w-3 h-3 mr-1 text-purple-500" />
+                        User feedback
                       </p>
                     </>
                   )}
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
-                  <CardTitle className="text-xs sm:text-sm font-medium">Avg Response Time</CardTitle>
-                  <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
+              <Card className="border-l-4 border-l-orange-500 hover:shadow-lg transition-shadow duration-200">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 sm:px-6 pt-4 sm:pt-6">
+                  <CardTitle className="text-sm sm:text-base font-semibold text-gray-700">Avg Response Time</CardTitle>
+                  <div className="p-2 bg-orange-100 rounded-lg">
+                    <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600" />
+                  </div>
                 </CardHeader>
-                <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6 pt-0">
+                <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6 pt-0">
                   {isDataLoading ? (
                     <div className="flex items-center space-x-2">
-                      <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
-                      <span className="text-xs sm:text-sm text-muted-foreground">Loading...</span>
+                      <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin text-orange-500" />
+                      <span className="text-sm text-gray-500">Loading...</span>
                     </div>
                   ) : (
                     <>
-                      <div className="text-xl sm:text-2xl font-bold">{stats.averageResponseTime}s</div>
-                      <p className="text-[10px] sm:text-xs text-muted-foreground">
-                        Average bot response time
+                      <div className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">{stats.averageResponseTime}s</div>
+                      <p className="text-xs text-gray-500 flex items-center">
+                        <Clock className="w-3 h-3 mr-1 text-orange-500" />
+                        Response speed
                       </p>
                     </>
                   )}
@@ -377,12 +375,15 @@ export default function AdminPortal() {
             </div>
 
             {/* Recent Activity */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between px-3 sm:px-6 pt-3 sm:pt-6 pb-2 sm:pb-4">
+            <Card className="shadow-lg border-0">
+              <CardHeader className="flex flex-row items-center justify-between px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 bg-gradient-to-r from-gray-50 to-white rounded-t-lg">
                 <div>
-                  <CardTitle className="text-base sm:text-lg">Recent Conversations</CardTitle>
-                  <CardDescription className="text-xs sm:text-sm">
-                    Latest chatbot interactions
+                  <CardTitle className="text-lg sm:text-xl font-bold text-gray-800 flex items-center">
+                    <MessageSquare className="w-5 h-5 mr-2 text-[#2d5016]" />
+                    Recent Conversations
+                  </CardTitle>
+                  <CardDescription className="text-sm text-gray-600 mt-1">
+                    Latest chatbot interactions and system activity
                   </CardDescription>
                 </div>
                 <Button 
@@ -390,16 +391,18 @@ export default function AdminPortal() {
                   size="sm" 
                   onClick={loadData}
                   disabled={isDataLoading}
-                  className="h-8 text-xs sm:text-sm px-2 sm:px-3"
+                  className="h-9 text-sm px-4 border-[#2d5016] text-[#2d5016] hover:bg-[#2d5016] hover:text-white transition-colors"
                 >
                   {isDataLoading ? (
                     <>
-                      <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 animate-spin" />
-                      <span className="hidden sm:inline">Refreshing...</span>
-                      <span className="sm:hidden">...</span>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Refreshing...
                     </>
                   ) : (
-                    <>Refresh</>
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Refresh
+                    </>
                   )}
                 </Button>
               </CardHeader>

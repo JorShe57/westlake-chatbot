@@ -1,506 +1,372 @@
 "use client"
 
-import type React from "react"
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Send, MessageCircle, FileText, CreditCard, Video, AlertTriangle, Menu } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
-import MessageRenderer from "@/components/message-renderer"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Separator } from "@/components/ui/separator"
+import { MessageRenderer } from "@/components/message-renderer"
+import { Navigation } from "@/components/navigation"
 import { config } from "@/lib/config"
 import { useAuth } from "@/contexts/AuthContext"
 import { 
-  createConversation, 
-  storeMessage, 
-  storeFeedback, 
-  completeConversation,
-  loadConversationHistory,
-  isSupabaseConfigured
-} from "@/lib/chat-storage"
-
-interface StructuredMessagePart {
-  type: "heading" | "list-item" | "text" | "alert" | "success" | "error" | "file" | "location" | "image" | "divider"
-  content: string
-  level?: number
-  url?: string
-  imageUrl?: string
-  alertType?: "info" | "warning" | "error" | "success"
-}
+  Send, 
+  MessageSquare, 
+  Clock, 
+  User, 
+  Bot,
+  Loader2,
+  RefreshCw,
+  ExternalLink
+} from "lucide-react"
 
 interface Message {
   id: string
+  content: string
   isUser: boolean
-  content: string // Used for user messages and as a fallback for simple bot messages
+  timestamp: string
   formatted?: boolean
-  message?: StructuredMessagePart[]
-  timestamp?: string
-  feedback?: {
-    isPositive: boolean
-    comment?: string
-  }
+  message?: any[]
 }
-
-const popularTopics = config.popularTopics
-const quickActions = config.quickActions
-const quickPrompts = config.quickPrompts
 
 export default function WestlakeChatbot() {
   const { user } = useAuth()
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "1",
-      content: config.chatbot.welcomeMessage,
-      isUser: false,
-      formatted: false,
-      timestamp: new Date().toISOString()
-    },
-  ])
+  const [messages, setMessages] = useState<Message[]>([])
   const [inputMessage, setInputMessage] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [isTyping, setIsTyping] = useState(false)
-  const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(null)
-  const [sessionId, setSessionId] = useState("")
-  const [conversationId, setConversationId] = useState<string | null>(null)
-  const [supabaseEnabled, setSupabaseEnabled] = useState(false)
+  const [sessionId] = useState(() => `session_${Date.now()}_${Math.random().toString(36).substring(2)}`)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const [showQuickPrompts, setShowQuickPrompts] = useState(true)
+  const inputRef = useRef<HTMLInputElement>(null)
 
+  // Add welcome message on component mount
   useEffect(() => {
-    // Generate a unique session ID on component mount
-    const newSessionId = Date.now().toString(36) + Math.random().toString(36).substring(2)
-    setSessionId(newSessionId)
-    
-    // Check if Supabase is configured
-    const supabaseConfig = isSupabaseConfigured()
-    setSupabaseEnabled(supabaseConfig)
-    
-    // Initialize conversation
-    const initConversation = async () => {
-      if (supabaseConfig) {
-        try {
-          // Get user agent and IP address
-          const userAgent = navigator.userAgent
-          const ipAddress = "127.0.0.1" // In a real app, you'd get this from the server
-          
-          // Create conversation in Supabase
-          const convId = await createConversation(
-            newSessionId,
-            userAgent,
-            ipAddress,
-            user?.id
-          )
-          
-          setConversationId(convId)
-          
-          // Store welcome message
-          if (convId) {
-            await storeMessage(convId, messages[0])
-          }
-          
-          // Load conversation history if it exists
-          const history = await loadConversationHistory(newSessionId)
-          if (history.length > 1) { // More than just the welcome message
-            setMessages(history)
-          }
-        } catch (error) {
-          console.error("Error initializing conversation:", error)
-        }
-      }
+    const welcomeMessage: Message = {
+      id: `welcome_${Date.now()}`,
+      content: config.chatbot.welcomeMessage,
+      isUser: false,
+      timestamp: new Date().toISOString(),
+      formatted: false
     }
-    
-    initConversation()
-    
-    // Clean up on unmount
-    return () => {
-      if (supabaseEnabled && conversationId) {
-        completeConversation(conversationId)
-          .catch(error => console.error("Error completing conversation:", error))
-      }
-    }
-  }, []) // Empty dependency array ensures this runs only once
+    setMessages([welcomeMessage])
+  }, [])
 
-  const scrollToBottom = () => {
+  // Auto-scroll to bottom when new messages are added
+  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }
-
-  useEffect(() => {
-    scrollToBottom()
   }, [messages])
 
-  // Handle message feedback
-  const handleFeedback = (messageId: string, isPositive: boolean, comment?: string) => {
-    setMessages((prev) => 
-      prev.map(msg => 
-        msg.id === messageId 
-          ? { ...msg, feedback: { isPositive, comment } } 
-          : msg
-      )
-    )
-    
-    // Store feedback in Supabase if enabled
-    if (supabaseEnabled && conversationId) {
-      storeFeedback(conversationId, messageId, isPositive, comment)
-        .catch(error => console.error("Error storing feedback:", error))
-    }
-    
-    // Send feedback to n8n webhook as well
-    if (sessionId) {
-      fetch(config.n8n.webhookUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sessionId: sessionId,
-          messageId: messageId,
-          feedback: { isPositive, comment },
-          type: "feedback",
-          timestamp: new Date().toISOString(),
-        }),
-      }).catch(error => {
-        console.error("Error sending feedback:", error)
-      })
-    }
-  }
-
-  // Simulate typing indicator
-  const simulateTyping = () => {
-    setIsTyping(true)
-    
-    // Clear any existing timeout
-    if (typingTimeout) {
-      clearTimeout(typingTimeout)
-    }
-    
-    // Set a random typing duration between 1-3 seconds
-    const typingDuration = Math.floor(Math.random() * 2000) + 1000
-    const timeout = setTimeout(() => {
-      setIsTyping(false)
-    }, typingDuration)
-    
-    setTypingTimeout(timeout)
-  }
-  
-  // Clean up typing timeout on unmount
+  // Focus input on load
   useEffect(() => {
-    return () => {
-      if (typingTimeout) {
-        clearTimeout(typingTimeout)
-      }
-    }
-  }, [typingTimeout])
+    inputRef.current?.focus()
+  }, [])
 
   const sendMessage = async () => {
-    if (!inputMessage.trim() || isLoading || !sessionId) return
+    if (!inputMessage.trim() || isLoading) return
 
-    const timestamp = new Date().toISOString()
     const userMessage: Message = {
-      id: Date.now().toString(),
-      content: inputMessage,
+      id: `user_${Date.now()}`,
+      content: inputMessage.trim(),
       isUser: true,
-      formatted: false,
-      timestamp,
+      timestamp: new Date().toISOString()
     }
 
-    setMessages((prev) => [...prev, userMessage])
+    setMessages(prev => [...prev, userMessage])
+    const messageText = inputMessage.trim()
     setInputMessage("")
     setIsLoading(true)
-    simulateTyping() // Start typing indicator
-    
-    // Store user message in Supabase if enabled
-    if (supabaseEnabled && conversationId) {
-      storeMessage(conversationId, userMessage)
-        .catch(error => console.error("Error storing user message:", error))
-    }
 
     try {
-      const response = await fetch(
-        config.n8n.webhookUrl,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            sessionId: sessionId,
-            message: inputMessage,
-            timestamp,
-            conversationId: conversationId // Pass the conversation ID to n8n if available
-          }),
+      const requestBody = {
+        message: messageText,
+        sessionId,
+        userId: user?.id || 'anonymous',
+        userAgent: navigator.userAgent,
+        timestamp: new Date().toISOString()
+      }
+
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-      )
+        body: JSON.stringify(requestBody),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(`HTTP error! status: ${response.status} - ${errorData.error || response.statusText}`)
+      }
 
       const data = await response.json()
-      const responseTimestamp = new Date().toISOString()
-      let botMessage: Message
-
-      // Check if the response is a structured message or plain text
-      if (data.formatted === true && Array.isArray(data.message)) {
-        // Structured format
-        botMessage = {
-          id: (Date.now() + 1).toString(),
-          isUser: false,
-          content: "", // Not needed for formatted messages
-          formatted: true,
-          message: data.message,
-          timestamp: responseTimestamp,
-        }
-      } else if (data.formatted === false && typeof data.message === 'string') {
-        // New n8n format with formatted: false and message as plain text
-        botMessage = {
-          id: (Date.now() + 1).toString(),
-          isUser: false,
-          content: data.message,
-          formatted: false,
-          timestamp: responseTimestamp,
-        }
-      } else {
-        // Fallback for other response formats
-        const botResponseContent =
-          data.bot_response ||
-          data.response ||
-          data.message ||
-          data.text ||
-          data.output ||
-          (typeof data.data === "string" ? data.data : null) ||
-          config.errors.networkError
-
-        botMessage = {
-          id: (Date.now() + 1).toString(),
-          isUser: false,
-          content: botResponseContent,
-          formatted: false,
-          timestamp: responseTimestamp,
-        }
-      }
       
-      // Add a small delay before showing the response to make it feel more natural
-      setTimeout(() => {
-        setIsTyping(false)
-        setMessages((prev) => [...prev, botMessage])
-        
-        // Store bot message in Supabase if enabled
-        if (supabaseEnabled && conversationId) {
-          storeMessage(conversationId, botMessage)
-            .catch(error => console.error("Error storing bot message:", error))
-        }
-        
-        setIsLoading(false)
-      }, 500)
-    } catch (error) {
-      console.error("Error sending message:", error)
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        content: config.errors.networkError,
+      const botMessage: Message = {
+        id: `bot_${Date.now()}`,
+        content: data.bot_response || data.message || data.response || "I'm sorry, I couldn't generate a response.",
         isUser: false,
-        formatted: false,
         timestamp: new Date().toISOString(),
+        formatted: data.formatted || false,
+        message: data.structuredMessage || data.message_data
       }
-      setIsTyping(false)
-      setMessages((prev) => [...prev, errorMessage])
+
+      setMessages(prev => [...prev, botMessage])
+    } catch (error) {
+      console.error('Error sending message:', error)
       
-      // Store error message in Supabase if enabled
-      if (supabaseEnabled && conversationId) {
-        storeMessage(conversationId, errorMessage)
-          .catch(error => console.error("Error storing error message:", error))
+      let errorContent = config.errors.networkError
+      if (error?.message?.includes('404')) {
+        errorContent = "I'm sorry, the chat service is temporarily unavailable (404 error). Please try again later or contact City Hall directly."
+      } else if (error?.message?.includes('500')) {
+        errorContent = "I'm sorry, there's a temporary issue with the chat service. Please try again in a moment."
       }
       
+      const errorMessage: Message = {
+        id: `error_${Date.now()}`,
+        content: errorContent,
+        isUser: false,
+        timestamp: new Date().toISOString(),
+        formatted: false
+      }
+      setMessages(prev => [...prev, errorMessage])
+    } finally {
       setIsLoading(false)
+      inputRef.current?.focus()
     }
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       sendMessage()
     }
   }
 
-  const handleQuickPrompt = (prompt: string) => {
-    setInputMessage(prompt)
-    setShowQuickPrompts(false)
-    // Auto-send the message
-    setTimeout(() => {
-      const event = new KeyboardEvent("keypress", { key: "Enter" })
-      handleKeyPress(event as any)
-    }, 100)
+  const startNewConversation = () => {
+    setMessages([{
+      id: `welcome_${Date.now()}`,
+      content: config.chatbot.welcomeMessage,
+      isUser: false,
+      timestamp: new Date().toISOString(),
+      formatted: false
+    }])
   }
 
-  const SidebarContent = () => (
-    <div className="flex flex-col space-y-8 p-6">
-      <div>
-        <h2 className="text-2xl font-bold">Quick Actions</h2>
-        <div className="mt-6 space-y-2">
-          {quickActions.map((action) => (
-            <a
-              key={action.name}
-              href={action.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group -mx-3 flex items-center rounded-lg px-3 py-2 text-sm font-medium text-gray-200 transition-colors hover:bg-white/10 hover:text-white"
-            >
-              <action.icon className="mr-3 h-5 w-5 text-green-300" />
-              <span>{action.name}</span>
-            </a>
-          ))}
-        </div>
-      </div>
-      <div>
-        <h2 className="text-2xl font-bold">Popular Topics</h2>
-        <div className="mt-6 flex flex-wrap gap-2">
-          {popularTopics.map((topic) => (
-            <a
-              key={topic.name}
-              href={topic.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-gray-200 transition-colors hover:bg-white/20 hover:text-white"
-            >
-              {topic.name}
-            </a>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-
   return (
-    <div className="flex h-screen w-full bg-slate-100">
-      {/* Desktop Sidebar */}
-      <aside className="hidden w-full max-w-xs flex-col bg-[#2d5016] text-white md:flex">
-        <SidebarContent />
-      </aside>
-
-      {/* Main Chat Area */}
-      <main className="flex flex-1 flex-col">
-        <div className="m-0 flex h-screen flex-col rounded-none bg-white shadow-lg md:m-4 md:h-[calc(100vh-2rem)] md:rounded-xl">
-          <CardHeader className="flex flex-row items-center space-x-4 border-b bg-[#2d5016] p-4 text-white md:rounded-t-xl">
-            {/* Mobile Menu */}
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="md:hidden">
-                  <Menu className="h-6 w-6" />
-                  <span className="sr-only">Open menu</span>
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="w-full max-w-xs bg-[#2d5016] p-0 text-white border-none">
-                <SheetHeader className="p-6 pb-0">
-                  <SheetTitle className="text-2xl font-bold text-white">Menu</SheetTitle>
-                </SheetHeader>
-                <SidebarContent />
-              </SheetContent>
-            </Sheet>
-            <div className="flex items-center gap-4">
-              <div className="relative">
-                <Avatar>
-                  <AvatarImage src="/westlake-city-hall.jpg" alt="Westlake City Hall" />
-                  <AvatarFallback>WL</AvatarFallback>
-                </Avatar>
-                <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-[#2d5016]" />
-              </div>
-              <div className="flex flex-col">
-                <CardTitle className="text-lg font-bold">Westlake Virtual Assistant</CardTitle>
-                <p className="text-sm text-green-100">Online and ready to help</p>
-              </div>
-            </div>
-          </CardHeader>
-
-          <CardContent className="flex-1 space-y-4 sm:space-y-6 overflow-y-auto p-2 sm:p-4 md:p-6">
-            {showQuickPrompts && messages.length === 1 && (
-              <div className="mb-4 sm:mb-6">
-                <h3 className="mb-2 sm:mb-3 text-xs sm:text-sm font-medium text-gray-600">Quick questions to get you started:</h3>
-                <div className="grid grid-cols-1 gap-1.5 sm:gap-2 sm:grid-cols-2">
-                  {quickPrompts.map((prompt, index) => (
-                    <button
-                      key={index}
-                      onClick={() => handleQuickPrompt(prompt)}
-                      className="rounded-lg border border-gray-200 bg-white p-2 sm:p-3 text-left text-xs sm:text-sm text-gray-700 transition-colors hover:bg-gray-50 hover:border-[#2d5016] focus:outline-none focus:ring-2 focus:ring-[#2d5016] focus:ring-offset-2"
-                    >
-                      {prompt}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex items-end gap-2 sm:gap-3 ${message.isUser ? "justify-end" : "justify-start"}`}
-              >
-                {!message.isUser && (
-                  <Avatar className="h-6 w-6 sm:h-8 sm:w-8 flex-shrink-0">
-                    <AvatarImage src="/westlake-city-hall.jpg" alt="Westlake City Hall" />
-                    <AvatarFallback>WL</AvatarFallback>
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-white">
+      <Navigation 
+        title="Westlake Virtual Assistant" 
+        subtitle="Chat with our AI assistant"
+        showBackButton={true}
+        backButtonHref="/"
+      />
+      
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-12rem)]">
+          
+          {/* Chat Interface */}
+          <div className="lg:col-span-3">
+            <Card className="h-full flex flex-col">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                <div className="flex items-center space-x-3">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src="/westlake-city-hall.jpg" alt="City of Westlake" />
+                    <AvatarFallback className="bg-[#2d5016] text-white">WL</AvatarFallback>
                   </Avatar>
-                )}
-                <div
-                  className={`max-w-[85%] sm:max-w-[75%] rounded-2xl px-3 py-2 sm:px-4 sm:py-3 shadow-sm text-sm ${
-                    message.isUser
-                      ? "rounded-br-none bg-[#2d5016] text-white"
-                      : "rounded-bl-none border bg-gray-100 text-gray-800"
-                  }`}
-                >
-                  <MessageRenderer 
-                    message={message} 
-                    isBot={!message.isUser} 
-                    onFeedback={handleFeedback}
-                    showFeedback={!message.isUser && !message.feedback}
-                  />
-                  {message.timestamp && (
-                    <div className="text-[10px] sm:text-xs text-gray-500 mt-1">
-                      {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </div>
-                  )}
-                </div>
-                {message.isUser && (
-                  <Avatar className="h-6 w-6 sm:h-8 sm:w-8 flex-shrink-0">
-                    <AvatarImage src="/placeholder.svg?height=32&width=32" alt="User" />
-                    <AvatarFallback>U</AvatarFallback>
-                  </Avatar>
-                )}
-              </div>
-            ))}
-            {(isLoading || isTyping) && (
-              <div className="flex items-end gap-2 sm:gap-3">
-                <Avatar className="h-6 w-6 sm:h-8 sm:w-8 flex-shrink-0">
-                  <AvatarImage src="/westlake-city-hall.jpg" alt="Westlake City Hall" />
-                  <AvatarFallback>WL</AvatarFallback>
-                </Avatar>
-                <div className="flex flex-col rounded-2xl rounded-bl-none border bg-gray-100 px-3 py-2 sm:px-4 sm:py-3 shadow-sm">
-                  <div className="flex items-center space-x-2">
-                    <span className="h-1.5 w-1.5 sm:h-2 sm:w-2 animate-pulse rounded-full bg-gray-400 [animation-delay:-0.3s]" />
-                    <span className="h-1.5 w-1.5 sm:h-2 sm:w-2 animate-pulse rounded-full bg-gray-400 [animation-delay:-0.15s]" />
-                    <span className="h-1.5 w-1.5 sm:h-2 sm:w-2 animate-pulse rounded-full bg-gray-400" />
+                  <div>
+                    <CardTitle className="text-lg">City of Westlake Assistant</CardTitle>
+                    <p className="text-sm text-muted-foreground flex items-center">
+                      <div className="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></div>
+                      Online and ready to help
+                    </p>
                   </div>
-                  <span className="text-[10px] sm:text-xs text-gray-400 mt-1">Westlake Assistant is typing...</span>
                 </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </CardContent>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={startNewConversation}
+                  className="flex items-center space-x-2"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  <span>New Chat</span>
+                </Button>
+              </CardHeader>
+              
+              <Separator />
+              
+              <CardContent className="flex-1 flex flex-col p-0">
+                {/* Messages Area */}
+                <ScrollArea className="flex-1 p-4">
+                  <div className="space-y-4">
+                    {messages.map((message) => (
+                      <div
+                        key={message.id}
+                        className={`flex items-start gap-3 ${
+                          message.isUser ? "justify-end" : "justify-start"
+                        }`}
+                      >
+                        {!message.isUser && (
+                          <Avatar className="h-8 w-8 mt-1">
+                            <AvatarImage src="/westlake-city-hall.jpg" alt="Assistant" />
+                            <AvatarFallback className="bg-[#2d5016] text-white text-xs">
+                              <Bot className="w-4 h-4" />
+                            </AvatarFallback>
+                          </Avatar>
+                        )}
+                        
+                        <div
+                          className={`max-w-[85%] rounded-2xl px-4 py-3 shadow-sm ${
+                            message.isUser
+                              ? "rounded-br-none bg-[#2d5016] text-white"
+                              : "rounded-bl-none border bg-white text-gray-800"
+                          }`}
+                        >
+                          <MessageRenderer 
+                            message={message} 
+                            isBot={!message.isUser}
+                            showFeedback={!message.isUser}
+                          />
+                        </div>
+                        
+                        {message.isUser && (
+                          <Avatar className="h-8 w-8 mt-1">
+                            <AvatarImage src="/placeholder-user.jpg" alt="You" />
+                            <AvatarFallback className="bg-gray-500 text-white text-xs">
+                              <User className="w-4 h-4" />
+                            </AvatarFallback>
+                          </Avatar>
+                        )}
+                      </div>
+                    ))}
+                    
+                    {isLoading && (
+                      <div className="flex items-start gap-3 justify-start">
+                        <Avatar className="h-8 w-8 mt-1">
+                          <AvatarImage src="/westlake-city-hall.jpg" alt="Assistant" />
+                          <AvatarFallback className="bg-[#2d5016] text-white text-xs">
+                            <Bot className="w-4 h-4" />
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="max-w-[85%] rounded-2xl rounded-bl-none border bg-white px-4 py-3 shadow-sm">
+                          <div className="flex items-center space-x-2 text-gray-500">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span className="text-sm">Assistant is typing...</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    <div ref={messagesEndRef} />
+                  </div>
+                </ScrollArea>
+                
+                {/* Input Area */}
+                <div className="border-t bg-gray-50 p-4">
+                  <div className="flex items-end space-x-2">
+                    <div className="flex-1">
+                      <Input
+                        ref={inputRef}
+                        placeholder="Ask me anything about city services..."
+                        value={inputMessage}
+                        onChange={(e) => setInputMessage(e.target.value)}
+                        onKeyPress={handleKeyPress}
+                        disabled={isLoading}
+                        className="resize-none border-0 bg-white shadow-sm focus-visible:ring-1"
+                        maxLength={config.chatbot.maxMessageLength}
+                      />
+                    </div>
+                    <Button 
+                      onClick={sendMessage}
+                      disabled={!inputMessage.trim() || isLoading}
+                      size="icon"
+                      className="bg-[#2d5016] hover:bg-[#223d11] shrink-0"
+                    >
+                      {isLoading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Send className="w-4 h-4" />
+                      )}
+                    </Button>
+                  </div>
+                  <div className="flex justify-between items-center mt-2 text-xs text-gray-500">
+                    <span>Press Enter to send</span>
+                    <span>{inputMessage.length}/{config.chatbot.maxMessageLength}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Quick Actions */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center">
+                  <MessageSquare className="w-4 h-4 mr-2" />
+                  Quick Actions
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {config.quickActions.slice(0, 4).map((action, index) => (
+                  <a
+                    key={index}
+                    href={action.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between p-2 rounded-lg border hover:bg-gray-50 transition-colors group"
+                  >
+                    <span className="text-sm font-medium">{action.name}</span>
+                    <ExternalLink className="w-3 h-3 text-gray-400 group-hover:text-gray-600" />
+                  </a>
+                ))}
+              </CardContent>
+            </Card>
 
-          <div className="rounded-b-xl border-t bg-white p-2 md:p-4 pb-safe">
-            <div className="relative">
-              <Input
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Type your message here..."
-                className="w-full rounded-full border-gray-300 bg-gray-100 py-5 sm:py-6 pl-4 sm:pl-5 pr-12 sm:pr-16 text-sm focus-visible:ring-2 focus-visible:ring-[#2d5016]"
-                disabled={isLoading}
-              />
-              <Button
-                type="submit"
-                size="icon"
-                onClick={sendMessage}
-                disabled={!inputMessage.trim() || isLoading}
-                className="absolute right-1.5 sm:right-2 top-1/2 -translate-y-1/2 h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-[#2d5016] text-white transition-colors hover:bg-[#223d11] focus-visible:ring-2 focus-visible:ring-[#2d5016] focus-visible:ring-offset-2 disabled:bg-gray-400"
-              >
-                <Send className="h-4 w-4 sm:h-5 sm:w-5" />
-                <span className="sr-only">Send</span>
-              </Button>
-            </div>
+            {/* Quick Prompts */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Popular Questions</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {config.quickPrompts.slice(0, 4).map((prompt, index) => (
+                  <button
+                    key={index}
+                    onClick={() => {
+                      setInputMessage(prompt)
+                      inputRef.current?.focus()
+                    }}
+                    className="w-full text-left p-2 rounded-lg border hover:bg-gray-50 transition-colors"
+                    disabled={isLoading}
+                  >
+                    <span className="text-sm">{prompt}</span>
+                  </button>
+                ))}
+              </CardContent>
+            </Card>
+
+            {/* Contact Info */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center">
+                  <Clock className="w-4 h-4 mr-2" />
+                  Need More Help?
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div>
+                  <p className="text-sm font-medium">City Hall</p>
+                  <p className="text-xs text-gray-600">{config.city.phone}</p>
+                  <p className="text-xs text-gray-600">Mon-Fri: 8:00 AM - 5:00 PM</p>
+                </div>
+                <Badge variant="outline" className="w-fit">
+                  Emergency: 911
+                </Badge>
+              </CardContent>
+            </Card>
           </div>
         </div>
-      </main>
+      </div>
     </div>
   )
 } 

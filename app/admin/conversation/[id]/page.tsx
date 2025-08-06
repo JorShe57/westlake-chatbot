@@ -21,6 +21,7 @@ import {
 import MessageRenderer from "@/components/message-renderer"
 import { getConversationDetails } from "@/lib/admin-data"
 import { isSupabaseConfigured } from "@/lib/chat-storage"
+import { Navigation, Breadcrumbs } from "@/components/navigation"
 
 interface Message {
   id: string
@@ -227,37 +228,35 @@ export default function ConversationDetail() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-4">
-              <Button variant="ghost" onClick={() => router.push('/admin')}>
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back
-              </Button>
-              <div>
-                <h1 className="text-xl font-semibold text-[#2d5016]">
-                  Conversation Details
-                </h1>
-                <p className="text-sm text-gray-500">
-                  Session: {conversation.sessionId}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Button variant="outline" onClick={handleExport}>
-                <Download className="w-4 h-4 mr-2" />
-                Export
-              </Button>
-              <Button variant="outline">
-                <Share className="w-4 h-4 mr-2" />
-                Share
-              </Button>
-            </div>
-          </div>
+      {/* Navigation */}
+      <Navigation 
+        showBackButton={true}
+        backButtonLabel="Back to Admin"
+        backButtonHref="/admin"
+        title="Conversation Details" 
+        subtitle={`Session: ${conversation.sessionId}`}
+      />
+      
+      {/* Breadcrumbs */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <Breadcrumbs 
+          items={[
+            { label: "Admin Portal", href: "/admin" },
+            { label: "Conversations", href: "/admin" },
+            { label: conversation.sessionId.slice(0, 8) + "..." }
+          ]}
+        />
+        <div className="flex items-center space-x-2 mt-4">
+          <Button variant="outline" onClick={handleExport}>
+            <Download className="w-4 h-4 mr-2" />
+            Export JSON
+          </Button>
+          <Button variant="outline">
+            <Share className="w-4 h-4 mr-2" />
+            Share Link
+          </Button>
         </div>
-      </header>
+      </div>
 
       {/* Main Content */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

@@ -209,3 +209,4 @@ const MessageRenderer: React.FC<MessageRendererProps> = ({
 }
 
 export default MessageRenderer
+export { MessageRenderer }

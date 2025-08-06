@@ -18,37 +18,19 @@ import {
   Clock
 } from "lucide-react"
 import { config } from "@/lib/config"
+import { useAuth } from "@/contexts/AuthContext"
+import { Navigation } from "@/components/navigation"
 
 export default function LandingPage() {
+  const { isAuthenticated } = useAuth()
+  
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-white">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-4">
-              <div className="w-8 h-8 bg-[#2d5016] rounded-lg flex items-center justify-center">
-                <MessageSquare className="w-5 h-5 text-white" />
-              </div>
-              <h1 className="text-xl font-semibold text-[#2d5016]">
-                Westlake Virtual Assistant
-              </h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Link href="/auth/signin">
-                <Button variant="ghost" className="text-gray-600 hover:text-gray-900">
-                  Sign In
-                </Button>
-              </Link>
-              <Link href="/auth/signup">
-                <Button className="bg-[#2d5016] hover:bg-[#223d11]">
-                  Sign Up
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </header>
+      {/* Navigation */}
+      <Navigation 
+        title="Westlake Virtual Assistant" 
+        subtitle="Your 24/7 city services companion"
+      />
 
       {/* Hero Section */}
       <section className="relative overflow-hidden">
@@ -74,12 +56,19 @@ export default function LandingPage() {
                     <ArrowRight className="w-5 h-5 ml-2" />
                   </Button>
                 </Link>
-                <Link href="/auth/signup">
-                  <Button size="lg" variant="outline" className="text-lg px-8 py-6 border-2">
-                    Create Account
-                  </Button>
-                </Link>
-              </div>
+                {isAuthenticated ? (
+                  <Link href="/dashboard">
+                    <Button size="lg" variant="outline" className="text-lg px-8 py-6 border-2">
+                      Go to Dashboard
+                    </Button>
+                  </Link>
+                ) : (
+                  <Link href="/auth/signup">
+                    <Button size="lg" variant="outline" className="text-lg px-8 py-6 border-2">
+                      Create Account
+                    </Button>
+                  </Link>
+                )}              </div>
             </div>
             <div className="relative">
               <div className="relative z-10">
